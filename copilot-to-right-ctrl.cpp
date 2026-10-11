@@ -23,10 +23,14 @@ Modifier mods[2] = {
 };
 
 HHOOK hHook = NULL;
-CRITICAL_SECTION lock;
 HANDLE hStart = NULL;
 HANDLE hStop = NULL;
+DWORD mainThreadId = 0;
 bool held = false;
+// Bumped whenever a hold starts or its repeat ends, so repeat ticks already queued are ignored.
+volatile LONG generation = 0;
+
+const UINT WM_REPEAT_TICK = WM_APP + 1;
 
 void SendKey(WORD vk, WORD scan, DWORD flags) {
     INPUT input = {};
@@ -65,13 +69,19 @@ DWORD WINAPI RepeatThread(LPVOID) {
     for (;;) {
         WaitForSingleObject(hStart, INFINITE);
         double interval = RepeatIntervalMs();
+        LONG gen = generation;
         double next = NowMs() + RepeatDelayMs();
         for (;;) {
             double wait = next - NowMs();
             if (WaitForSingleObject(hStop, wait > 0 ? (DWORD)(wait + 0.5) : 0) != WAIT_TIMEOUT) break;
-            EnterCriticalSection(&lock);
-            if (held) SendRCtrl(false);
-            LeaveCriticalSection(&lock);
+            if (generation != gen) {
+                // A new hold began before this loop saw the previous one end.
+                gen = generation;
+                next = NowMs() + RepeatDelayMs();
+                continue;
+            }
+            // Keys are only ever injected from the hook thread; injecting here could block against the hook.
+            PostThreadMessage(mainThreadId, WM_REPEAT_TICK, (WPARAM)gen, 0);
             next += interval;
         }
     }
@@ -85,7 +95,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
         if (!injected) {
             // Like hardware typematic, pressing any other key ends the repeat for the rest of this hold.
-            if (held && !up && pKbd->vkCode != VK_F23) SetEvent(hStop);
+            if (held && !up && pKbd->vkCode != VK_F23) {
+                InterlockedIncrement(&generation);
+                SetEvent(hStop);
+            }
 
             for (Modifier& m : mods) {
                 if (pKbd->vkCode != m.vk) continue;
@@ -115,19 +128,17 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
                         m.swallowUp = false;
                         if (fromCopilot) SendKey(m.vk, m.scan, m.flags | KEYEVENTF_KEYUP);
                     }
-                    EnterCriticalSection(&lock);
                     held = true;
+                    InterlockedIncrement(&generation);
                     SendRCtrl(false);
-                    LeaveCriticalSection(&lock);
                     ResetEvent(hStop);
                     SetEvent(hStart);
                 }
             } else {
                 SetEvent(hStop);
-                EnterCriticalSection(&lock);
+                InterlockedIncrement(&generation);
                 held = false;
                 SendRCtrl(true);
-                LeaveCriticalSection(&lock);
                 for (Modifier& m : mods) {
                     if (m.userHeld) {
                         m.swallowUp = true;
@@ -194,28 +205,30 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     MSG msg;
     PeekMessage(&msg, NULL, WM_USER, WM_USER, PM_NOREMOVE);
-    CreateThread(NULL, 0, QuitWatchThread, (LPVOID)(DWORD_PTR)GetCurrentThreadId(), 0, NULL);
+    mainThreadId = GetCurrentThreadId();
+    CreateThread(NULL, 0, QuitWatchThread, (LPVOID)(DWORD_PTR)mainThreadId, 0, NULL);
 
     timeBeginPeriod(1);
-    InitializeCriticalSection(&lock);
     hStart = CreateEvent(NULL, FALSE, FALSE, NULL);
     hStop = CreateEvent(NULL, TRUE, TRUE, NULL);
     CreateThread(NULL, 0, RepeatThread, NULL, 0, NULL);
 
     hHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
     while (GetMessage(&msg, NULL, 0, 0)) {
+        if (msg.hwnd == NULL && msg.message == WM_REPEAT_TICK) {
+            if (held && (LONG)msg.wParam == generation) SendRCtrl(false);
+            continue;
+        }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
     UnhookWindowsHookEx(hHook);
 
     SetEvent(hStop);
-    EnterCriticalSection(&lock);
     if (held) {
         held = false;
         SendRCtrl(true);
     }
-    LeaveCriticalSection(&lock);
     timeEndPeriod(1);
     return 0;
 }
