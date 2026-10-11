@@ -22,16 +22,20 @@ Download `nopilot.exe` from the releases page, or build it yourself (see below).
 nopilot.exe --install
 ```
 
-This starts the remapper and registers it to start when you sign in (a per-user `Run` registry entry, no administrator rights needed).
+Windows asks for administrator approval once. nopilot then starts with administrator rights every time you sign in, with no further prompts, so the key also works while an administrator window has focus. It does this with a scheduled task named `nopilot`.
+
+If you decline the prompt, nopilot still installs, but without administrator rights (a per-user `Run` registry entry). In that mode Windows does not let it see keys while an administrator window has focus, and the Copilot key behaves as usual there.
+
+Because the installed copy runs with administrator rights, keep `nopilot.exe` in a folder that only administrators can change, such as a folder under `C:\Program Files`.
 
 ## Usage
 
 | Command | Effect |
 | --- | --- |
 | `nopilot.exe` | Start the remapper for this session only. |
-| `nopilot.exe --install` | Start it and register it to start at sign-in. |
+| `nopilot.exe --install` | Start it and register it to start at sign-in. Asks for administrator approval once. |
 | `nopilot.exe --quit` | Stop the running remapper. |
-| `nopilot.exe --uninstall` | Stop it and remove the sign-in entry. |
+| `nopilot.exe --uninstall` | Stop it and remove the sign-in entry. Asks for administrator approval if the scheduled task exists. |
 
 Only one instance runs at a time; starting it again does nothing. If you move the executable, run `--install` again from the new location.
 
@@ -45,8 +49,9 @@ build.bat
 
 ## Limitations
 
-- The remapper runs without administrator rights, so Windows does not let it see keys while an elevated (administrator) window has focus. The Copilot key behaves as usual there.
-- The Copilot key is recognised by timing: its Windows and Shift presses arrive within 20 ms of F23. A keyboard that sends the sequence more slowly would need the constants at the top of the source adjusted.
+- On a standard (non-administrator) account the scheduled task cannot run with administrator rights, so the key does not work in administrator windows.
+- The Copilot key does not work on the secure desktop (UAC prompts and the lock screen); no ordinary program can see keys there.
+- A Windows or Shift press counts as part of the Copilot key only if it is one of the two key events directly before F23 and arrived within 50 ms of it. Pressing Windows or Shift and the Copilot key at almost exactly the same instant is treated as the Copilot key alone.
 
 ## License
 
