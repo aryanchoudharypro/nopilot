@@ -14,7 +14,7 @@ call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
 if errorlevel 1 goto notools
 
 :build
-cl /nologo /O2 /W3 /EHsc /MT copilot-to-right-ctrl.cpp /Fe:copilot-to-right-ctrl.exe /link /SUBSYSTEM:WINDOWS user32.lib winmm.lib advapi32.lib
+cl /nologo /O1 /W3 /GS- /GR- copilot-to-right-ctrl.cpp /Fe:copilot-to-right-ctrl.exe /link /SUBSYSTEM:WINDOWS /NODEFAULTLIB /ENTRY:Entry /OPT:REF /OPT:ICF kernel32.lib user32.lib winmm.lib advapi32.lib
 exit /b %errorlevel%
 
 :notools

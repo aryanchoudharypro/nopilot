@@ -188,17 +188,17 @@ DWORD WINAPI QuitWatchThread(LPVOID param) {
     return 0;
 }
 
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    if (lstrcmpiA(lpCmdLine, "--quit") == 0) {
+int Run(HINSTANCE hInstance, const wchar_t* args) {
+    if (lstrcmpiW(args, L"--quit") == 0) {
         QuitRunningInstance();
         return 0;
     }
-    if (lstrcmpiA(lpCmdLine, "--uninstall") == 0) {
+    if (lstrcmpiW(args, L"--uninstall") == 0) {
         UninstallAutostart();
         QuitRunningInstance();
         return 0;
     }
-    if (lstrcmpiA(lpCmdLine, "--install") == 0) InstallAutostart();
+    if (lstrcmpiW(args, L"--install") == 0) InstallAutostart();
 
     CreateMutexW(NULL, FALSE, MUTEX_NAME);
     if (GetLastError() == ERROR_ALREADY_EXISTS) return 0;
@@ -231,4 +231,20 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     }
     timeEndPeriod(1);
     return 0;
+}
+
+// The program is built without the C runtime to keep the executable tiny, so it provides its own entry point.
+extern "C" int _fltused = 0;
+
+void WINAPI Entry() {
+    const wchar_t* args = GetCommandLineW();
+    if (*args == L'"') {
+        args++;
+        while (*args && *args != L'"') args++;
+        if (*args) args++;
+    } else {
+        while (*args && *args != L' ' && *args != L'	') args++;
+    }
+    while (*args == L' ' || *args == L'	') args++;
+    ExitProcess(Run(GetModuleHandleW(NULL), args));
 }
