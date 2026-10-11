@@ -153,9 +153,9 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 const wchar_t* RUN_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-const wchar_t* RUN_VALUE = L"CopilotToRightCtrl";
-const wchar_t* MUTEX_NAME = L"Local\\CopilotToRightCtrl";
-const wchar_t* QUIT_EVENT_NAME = L"Local\\CopilotToRightCtrlQuit";
+const wchar_t* RUN_VALUE = L"nopilot";
+const wchar_t* MUTEX_NAME = L"Local\\nopilot";
+const wchar_t* QUIT_EVENT_NAME = L"Local\\nopilotQuit";
 
 void InstallAutostart() {
     wchar_t path[MAX_PATH];

@@ -1,4 +1,4 @@
-# copilot-to-right-ctrl
+# nopilot
 
 Turns the Copilot key on Windows laptops back into a real Right Ctrl key.
 
@@ -16,10 +16,10 @@ What it gets right:
 
 ## Install
 
-Download `copilot-to-right-ctrl.exe` from the releases page, or build it yourself (see below). Put it somewhere permanent, then run:
+Download `nopilot.exe` from the releases page, or build it yourself (see below). Put it somewhere permanent, then run:
 
 ```
-copilot-to-right-ctrl.exe --install
+nopilot.exe --install
 ```
 
 This starts the remapper and registers it to start when you sign in (a per-user `Run` registry entry, no administrator rights needed).
@@ -28,10 +28,10 @@ This starts the remapper and registers it to start when you sign in (a per-user 
 
 | Command | Effect |
 | --- | --- |
-| `copilot-to-right-ctrl.exe` | Start the remapper for this session only. |
-| `copilot-to-right-ctrl.exe --install` | Start it and register it to start at sign-in. |
-| `copilot-to-right-ctrl.exe --quit` | Stop the running remapper. |
-| `copilot-to-right-ctrl.exe --uninstall` | Stop it and remove the sign-in entry. |
+| `nopilot.exe` | Start the remapper for this session only. |
+| `nopilot.exe --install` | Start it and register it to start at sign-in. |
+| `nopilot.exe --quit` | Stop the running remapper. |
+| `nopilot.exe --uninstall` | Stop it and remove the sign-in entry. |
 
 Only one instance runs at a time; starting it again does nothing. If you move the executable, run `--install` again from the new location.
 
