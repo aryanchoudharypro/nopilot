@@ -9,6 +9,11 @@
 // before F23 and no older than this; anything else is a key the user is holding.
 const DWORD COPILOT_WINDOW_MS = 50;
 
+// Windows calls the most recently installed keyboard hook first. A program that installs its own hook
+// later, such as a screen reader that was restarted, would see the raw Copilot key sequence before it is
+// rewritten, so the hook is reinstalled this often to stay at the front.
+const UINT REHOOK_INTERVAL_MS = 1000;
+
 struct Modifier {
 	WORD vk;
 	WORD scan;
@@ -444,9 +449,19 @@ int Run(HINSTANCE hInstance, const wchar_t* args) {
 	CreateThread(NULL, 0, RepeatThread, NULL, 0, NULL);
 
 	hHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
+	SetTimer(NULL, 0, REHOOK_INTERVAL_MS, NULL);
 	while (GetMessage(&msg, NULL, 0, 0)) {
 		if (msg.hwnd == NULL && msg.message == WM_REPEAT_TICK) {
 			if (held && (LONG)msg.wParam == generation) SendRCtrl(false);
+			continue;
+		}
+		if (msg.hwnd == NULL && msg.message == WM_TIMER) {
+			// The new hook goes in before the old one comes out, so no key can slip through in between.
+			HHOOK fresh = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, hInstance, 0);
+			if (fresh) {
+				UnhookWindowsHookEx(hHook);
+				hHook = fresh;
+			}
 			continue;
 		}
 		TranslateMessage(&msg);
